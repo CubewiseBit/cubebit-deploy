@@ -1,0 +1,15 @@
+{{- $name := include "nacos.name" . -}}
+{{- if eq .Values.nacos.storage.type "mysql" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  {{- with .Values.nacos.storage.db }}
+  mysql.db.host: {{ .host }}
+  mysql.db.name: {{ .name }}
+  mysql.port: {{ .port | default 3306 | quote }}
+  mysql.param: {{ .param | default "characterEncoding=utf8mb4&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false" }}
+  {{- end }}
+{{- end }}

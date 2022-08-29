@@ -1,0 +1,65 @@
+{{- $name := include "nacos.name" . -}}
+
+{{- define "nacos.service.metadata" -}}
+namespace: {{ .Values.namespace }}
+{{- if .Values.service.labels }}
+labels:
+  {{- toYaml .Values.service.labels | nindent 2 }}
+{{- end }}
+{{- if .Values.service.annotations }}
+annotations:
+  {{- toYaml .Values.service.annotations | nindent 2 }}
+{{- end }}
+{{- end }}
+
+{{- define "nacos.service.spec.ports" -}}
+ports:
+  - name: client
+    port: {{ .Values.service.port }}
+    targetPort: {{ .Values.nacos.serverPort }}
+    protocol: TCP
+  - name: client-rpc
+    port: {{ add .Values.service.port 1000 }}
+    targetPort: {{ add .Values.nacos.serverPort 1000 }}
+  - name: raft-rpc
+    port: {{ add .Values.service.port 1001 }}
+    targetPort: {{ add .Values.nacos.serverPort 1001 }}
+  ## 兼容1.4.x版本的选举端口
+  - name: old-raft-rpc
+    port: {{ sub .Values.nacos.serverPort 1000}}
+    targetPort: {{ sub .Values.nacos.serverPort 1000}}
+    protocol: TCP
+{{- end }}
+
+{{- define "nacos.service.spec.selector" -}}
+selector:
+  app.kubernetes.io/name: {{ include "nacos.name" . }}
+  app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+---
+{{- if eq .Values.global.mode "cluster" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-svc-hs
+  {{- include "nacos.service.metadata" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # publishNotReadyAddresses: true
+  {{- include "nacos.service.spec.ports" . | nindent 2 }}
+  {{- include "nacos.service.spec.selector" . | nindent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-svc-cs
+  {{- include "nacos.service.metadata" . | nindent 2 }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if eq .Values.service.type "NodePort" }}
+  nodePort: {{ .Values.service.nodePort }}
+  {{- end }}
+  {{- include "nacos.service.spec.ports" . | nindent 2 }}
+  {{- include "nacos.service.spec.selector" . | nindent 2 }}
