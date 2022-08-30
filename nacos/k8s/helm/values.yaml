@@ -13,6 +13,10 @@ nacos:
     repository: nacos/nacos-server
     tag: latest
     pullPolicy: IfNotPresent
+  replicaCount: 3
+  preferhostmode: hostname
+  domainName: cluster.local
+  serverPort: 8848
   plugin:
     flyway:
       # 数据库schema初始化
@@ -28,12 +32,6 @@ nacos:
         repository: nacos/nacos-peer-finder-plugin
         tag: latest
         pullPolicy: IfNotPresent
-  replicaCount: 3
-  preferhostmode: hostname
-  domainName: cluster.local
-  serverPort: 8848
-  health:
-    enabled: false
   storage:
     # type: embedded
     type: mysql
@@ -58,12 +56,13 @@ ingress:
     # kubernetes.io/tls-acme: "true"
   hosts:
     - host: nacos.example.com
-      paths: [ ]
-
+      paths: 
+        - "/nacos"
   tls: [ ]
     # - secretName: chart-example-tls
     #   hosts:
     #     - chart-example.local
+
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
