@@ -1,3 +1,6 @@
+{{- define "nacos.configmap.nacos.sql.v1" -}}
+{{ .Files.Get "flyway/V1__nacos-mysql.sql" }}
+{{- end }}
 {{- $name := include "nacos.name" . -}}
 {{- if eq .Values.nacos.storage.type "mysql" -}}
 apiVersion: v1
@@ -10,6 +13,8 @@ data:
   mysql.db.host: {{ .host }}
   mysql.db.name: {{ .name }}
   mysql.port: {{ .port | default 3306 | quote }}
-  mysql.param: {{ .param | default "characterEncoding=utf8mb4&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false" }}
-  {{- end }}
+  mysql.param: {{ .param | default "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false" }}
+  {{- end}}
+  V1__nacos-mysql.sql: |-
+    {{- include "nacos.configmap.nacos.sql.v1" . | nindent 4 }}
 {{- end }}

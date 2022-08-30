@@ -14,13 +14,23 @@ nacos:
     tag: latest
     pullPolicy: IfNotPresent
   plugin:
-    enable: true
-    image:
-      repository: nacos/nacos-peer-finder-plugin
-      tag: 1.1
+    flyway:
+      # 数据库schema初始化
+      enable: true
+      image: 
+        repository: flyway/flyway
+        tag: latest
+        pullPolicy: IfNotPresent
+    peerfinder:
+      # 集群自发现
+      enable: false
+      image:
+        repository: nacos/nacos-peer-finder-plugin
+        tag: latest
+        pullPolicy: IfNotPresent
   replicaCount: 3
-  domainName: cluster.local
   preferhostmode: hostname
+  domainName: cluster.local
   serverPort: 8848
   health:
     enabled: false
@@ -33,7 +43,7 @@ nacos:
       port: 3306
       username: username
       password: password
-      param: characterEncoding=utf8mb4&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false
+      param: serverTimezone=Asia/Shanghai
 
 
 service:

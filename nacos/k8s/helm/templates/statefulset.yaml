@@ -1,0 +1,185 @@
+{{- $name := include "nacos.name" . -}}
+{{- $fullname := include "nacos.fullname" . -}}
+{{- $servicename := printf "%s-svc-hs" (include "nacos.fullname" .)}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml .Values.annotations | indent 4 }}
+spec:
+  serviceName: {{ $servicename }}
+  replicas: {{ .Values.nacos.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+      {{- if and (eq .Values.global.mode "cluster") (.Values.nacos.plugin.peerfinder.enable) }}
+        - name: peer-finder-plugin-install
+          image: {{ .Values.nacos.plugin.peerfinder.image.repository }}:{{ .Values.nacos.plugin.peerfinder.image.tag }}
+          imagePullPolicy: {{ .Values.nacos.plugin.peerfinder.image.pullPolicy }}
+          volumeMounts:
+            - name: data
+              mountPath: /home/nacos/plugins/peer-finder
+              subPath: peer-finder
+      {{- end }}
+      {{- if .Values.nacos.plugin.flyway.enable }}
+        - name: flyway-plugin-install
+          image: {{ .Values.nacos.plugin.flyway.image.repository }}:{{ .Values.nacos.plugin.flyway.image.tag }}
+          imagePullPolicy: {{ .Values.nacos.plugin.flyway.image.pullPolicy }}
+          command:
+            - "flyway"
+          args:
+            - "migrate"
+          volumeMounts:
+            - name: flyway-conf
+              mountPath: /flyway/conf
+            - name: flyway-sql
+              mountPath: /flyway/sql
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.nacos.image.repository }}:{{ .Values.nacos.image.tag }}
+          imagePullPolicy: {{ .Values.nacos.image.pullPolicy }}
+          startupProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 10
+            httpGet:
+              scheme: HTTP
+              port: {{ .Values.nacos.serverPort }}
+              path: /nacos/v1/console/health/readiness
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 10
+            httpGet:
+              scheme: HTTP
+              port: {{ .Values.nacos.serverPort }}
+              path: /nacos/v1/console/health/readiness
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 10
+            httpGet:
+              scheme: HTTP
+              port: {{ .Values.nacos.serverPort }}
+              path: /nacos/v1/console/health/liveness
+          ports:
+            - name: client
+              containerPort: {{ .Values.nacos.serverPort }}
+              protocol: TCP
+            - name: client-rpc
+              containerPort: {{ add .Values.nacos.serverPort 1000}}
+            - name: raft-rpc
+              containerPort: {{ add .Values.nacos.serverPort 1001 }}
+            - name: old-raft-rpc
+              containerPort: {{ sub .Values.nacos.serverPort 1000}}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: NACOS_REPLICAS
+              value: {{ .Values.nacos.replicaCount | quote }}
+            - name: SERVICE_NAME
+              value: {{ $servicename }}
+            - name: DOMAIN_NAME
+              value: {{ .Values.nacos.domainName | quote }}
+            - name: POD_NAMESPACE
+              value: {{ .Values.namespace }}
+            - name: NACOS_SERVER_PORT
+              value: {{ .Values.nacos.serverPort | quote }}
+            - name: NACOS_APPLICATION_PORT
+              value: {{ .Values.nacos.serverPort | quote }}
+            - name: PREFER_HOST_MODE
+              value: {{ .Values.nacos.preferhostmode | quote }}
+            - name: NACOS_SERVERS
+              ## 也可以使用 untilStep
+              value: "{{ range $index := until (int .Values.nacos.replicaCount) -}}
+                {{ $fullname }}-{{ $index }}.{{ $servicename }}.{{ $.Values.namespace }}.svc.{{ $.Values.nacos.domainName }}:{{ $.Values.nacos.serverPort }}{{ " " }}
+              {{- end }}"
+            - name: MODE
+              value: {{ .Values.global.mode | quote }}
+            {{- if eq .Values.nacos.storage.type "mysql" }}
+            #- name: SPRING_DATASOURCE_PLATFORM
+            #  value: "mysql"
+            - name: MYSQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $name }}-configmap
+                  key: mysql.db.host
+            - name: MYSQL_SERVICE_DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $name }}-configmap
+                  key: mysql.db.name
+            - name: MYSQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $name }}-configmap
+                  key: mysql.port
+            - name: MYSQL_SERVICE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}-secret
+                  key: mysql.user
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}-secret
+                  key: mysql.password
+            - name: MYSQL_SERVICE_DB_PARAM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $name }}-configmap
+                  key: mysql.param
+            {{- else }}
+            - name: EMBEDDED_STORAGE
+              value: embedded
+            {{- end }}
+          volumeMounts:
+            ## 该目录使用peer-finder集群自动发现，会导致NACOS_SERVERS失效
+            {{- if and (eq .Values.global.mode "cluster") (.Values.nacos.plugin.enable) }}
+            - name: data
+              mountPath: /home/nacos/plugins/peer-finder
+              subPath: peer-finder
+            {{- end }}
+            - name: data
+              mountPath: /home/nacos/logs
+      volumes:
+        - name: data
+          emptyDir: { }
+        - name: flyway-conf
+          secret:
+            secretName: {{ $name }}-secret
+            items:
+              - key: flyway.conf
+                path: flyway.conf
+        - name: flyway-sql
+          configMap:
+            name: {{ $name }}-configmap
+            items:
+              - key: V1__nacos-mysql.sql
+                path: V1__nacos-mysql.sql
+
