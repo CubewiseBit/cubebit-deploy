@@ -55,7 +55,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: nacos.example.com
+    - host: dev.cubebit
       paths: 
         - "/nacos"
   tls: [ ]
