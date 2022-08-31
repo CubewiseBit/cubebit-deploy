@@ -1,12 +1,12 @@
 {{- define "nacos.configmap.nacos.sql.v1" -}}
 {{ .Files.Get "flyway/V1__nacos-mysql.sql" }}
 {{- end }}
-{{- $name := include "nacos.name" . -}}
+{{- $fullname := include "nacos.fullname" . -}}
 {{- if eq .Values.nacos.storage.type "mysql" -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $name }}-configmap
+  name: {{ $fullname }}-configmap
   namespace: {{ .Values.namespace }}
 data:
   {{- with .Values.nacos.storage.db }}
