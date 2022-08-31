@@ -3,6 +3,7 @@
 # Declare variables to be passed into your templates.
 
 namespace: default
+domainName: cluster.local
 
 nameOverride: ""
 fullnameOverride: ""

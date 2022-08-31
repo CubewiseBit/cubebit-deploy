@@ -1,5 +1,4 @@
 {{- $fullname := include "xxljob.fullname" . -}}
-{{- $servicename := printf "%s-svc-hs" (include "xxljob.fullname" .)}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

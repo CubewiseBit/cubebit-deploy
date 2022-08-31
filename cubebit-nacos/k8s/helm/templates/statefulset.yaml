@@ -107,7 +107,7 @@ spec:
             - name: SERVICE_NAME
               value: {{ $servicename }}
             - name: DOMAIN_NAME
-              value: {{ .Values.nacos.domainName | quote }}
+              value: {{ .Values.domainName | quote }}
             - name: POD_NAMESPACE
               value: {{ .Values.namespace }}
             - name: NACOS_SERVER_PORT
@@ -119,7 +119,7 @@ spec:
             - name: NACOS_SERVERS
               ## 也可以使用 untilStep
               value: "{{ range $index := until (int .Values.nacos.replicaCount) -}}
-                {{ $fullname }}-{{ $index }}.{{ $servicename }}.{{ $.Values.namespace }}.svc.{{ $.Values.nacos.domainName }}:{{ $.Values.nacos.serverPort }}{{ " " }}
+                {{ $fullname }}-{{ $index }}.{{ $servicename }}.{{ $.Values.namespace }}.svc.{{ $.Values.domainName }}:{{ $.Values.nacos.serverPort }}{{ " " }}
               {{- end }}"
             - name: MODE
               value: {{ .Values.global.mode | quote }}
