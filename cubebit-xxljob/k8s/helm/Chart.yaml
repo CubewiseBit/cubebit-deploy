@@ -1,0 +1,8 @@
+apiVersion: v2
+appVersion: "1.0"
+type: application
+name: xxljob
+description: A XxlJob Cluster Helm chart for Kubernetes
+version: 0.0.1
+maintainers:
+  - name: Maner·Fan

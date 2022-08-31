@@ -1,0 +1,12 @@
+{{- define "xxljob.configmap.xxljob.sql.v1" -}}
+{{ .Files.Get "flyway/V1__xxljob-mysql.sql" }}
+{{- end }}
+{{- $fullname := include "xxljob.fullname" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  V1__xxljob-mysql.sql: |-
+    {{- include "xxljob.configmap.xxljob.sql.v1" . | nindent 4 }}

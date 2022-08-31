@@ -1,0 +1,26 @@
+{{- $fullname := include "xxljob.fullname" . -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-svc
+  namespace: {{ .Values.namespace }}
+  {{- if .Values.service.labels }}
+  labels:
+    {{- toYaml .Values.service.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if eq .Values.service.type "NodePort" }}
+  nodePort: {{ .Values.service.nodePort }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.xxljob.serverPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "xxljob.selectorLabels" . | nindent 4 }}

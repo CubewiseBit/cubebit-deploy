@@ -8,10 +8,14 @@ global:
 
 ############################nacos###########################
 namespace: default
+
+nameOverride: ""
+fullnameOverride: ""
+
 nacos:
   image:
     repository: nacos/nacos-server
-    tag: latest
+    tag: v2.1.1
     pullPolicy: IfNotPresent
   replicaCount: 3
   preferhostmode: hostname
@@ -23,14 +27,14 @@ nacos:
       enable: true
       image: 
         repository: flyway/flyway
-        tag: latest
+        tag: 9.2.0
         pullPolicy: IfNotPresent
     peerfinder:
       # 集群自发现
       enable: false
       image:
         repository: nacos/nacos-peer-finder-plugin
-        tag: latest
+        tag: 1.1
         pullPolicy: IfNotPresent
   storage:
     # type: embedded
@@ -51,13 +55,15 @@ service:
 
 ingress:
   enabled: false
+  className: ""
   annotations: { }
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
     - host: dev.cubebit
       paths: 
-        - "/nacos"
+        - path: "/nacos"
+          pathType: ImplementationSpecific
   tls: [ ]
     # - secretName: chart-example-tls
     #   hosts:
@@ -79,11 +85,10 @@ resources:
 
 annotations: { }
 
+podAnnotations: { }
+
 nodeSelector: { }
 
 tolerations: [ ]
 
 affinity: { }
-
-
-

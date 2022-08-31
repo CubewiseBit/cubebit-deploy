@@ -1,4 +1,3 @@
-{{- $name := include "nacos.name" . -}}
 {{- $fullname := include "nacos.fullname" . -}}
 {{- $servicename := printf "%s-svc-hs" (include "nacos.fullname" .)}}
 apiVersion: apps/v1
@@ -8,20 +7,23 @@ metadata:
   namespace: {{ .Values.namespace }}
   annotations:
     {{- toYaml .Values.annotations | indent 4 }}
+  labels:
+    {{- include "nacos.labels" . | nindent 4 }}
 spec:
   serviceName: {{ $servicename }}
   replicas: {{ .Values.nacos.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ $name }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "nacos.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      labels:
-        app.kubernetes.io/name: {{ $name }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nacos.selectorLabels" . | nindent 8 }}        
     spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -127,32 +129,32 @@ spec:
             - name: MYSQL_SERVICE_HOST
               valueFrom:
                 configMapKeyRef:
-                  name: {{ $name }}-configmap
+                  name: {{ $fullname }}-configmap
                   key: mysql.db.host
             - name: MYSQL_SERVICE_DB_NAME
               valueFrom:
                 configMapKeyRef:
-                  name: {{ $name }}-configmap
+                  name: {{ $fullname }}-configmap
                   key: mysql.db.name
             - name: MYSQL_SERVICE_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: {{ $name }}-configmap
+                  name: {{ $fullname }}-configmap
                   key: mysql.port
             - name: MYSQL_SERVICE_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ $name }}-secret
+                  name: {{ $fullname }}-secret
                   key: mysql.user
             - name: MYSQL_SERVICE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $name }}-secret
+                  name: {{ $fullname }}-secret
                   key: mysql.password
             - name: MYSQL_SERVICE_DB_PARAM
               valueFrom:
                 configMapKeyRef:
-                  name: {{ $name }}-configmap
+                  name: {{ $fullname }}-configmap
                   key: mysql.param
             {{- else }}
             - name: EMBEDDED_STORAGE
@@ -160,25 +162,26 @@ spec:
             {{- end }}
           volumeMounts:
             ## 该目录使用peer-finder集群自动发现，会导致NACOS_SERVERS失效
-            {{- if and (eq .Values.global.mode "cluster") (.Values.nacos.plugin.enable) }}
+            {{- if and (eq .Values.global.mode "cluster") (.Values.nacos.plugin.peerfinder.enable) }}
             - name: data
               mountPath: /home/nacos/plugins/peer-finder
               subPath: peer-finder
             {{- end }}
             - name: data
               mountPath: /home/nacos/logs
+              subPath: logs
       volumes:
         - name: data
           emptyDir: { }
         - name: flyway-conf
           secret:
-            secretName: {{ $name }}-secret
+            secretName: {{ $fullname }}-secret
             items:
               - key: flyway.conf
                 path: flyway.conf
         - name: flyway-sql
           configMap:
-            name: {{ $name }}-configmap
+            name: {{ $fullname }}-configmap
             items:
               - key: V1__nacos-mysql.sql
                 path: V1__nacos-mysql.sql

@@ -1,0 +1,88 @@
+{{- $fullname := include "xxljob.fullname" . -}}
+{{- $servicename := printf "%s-svc-hs" (include "xxljob.fullname" .)}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml .Values.annotations | indent 4 }}
+  labels:
+    {{- include "xxljob.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.xxljob.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "xxljob.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "xxljob.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.xxljob.plugin.flyway.enable }}
+      initContainers:
+        - name: flyway-plugin-install
+          image: {{ .Values.xxljob.plugin.flyway.image.repository }}:{{ .Values.xxljob.plugin.flyway.image.tag }}
+          imagePullPolicy: {{ .Values.xxljob.plugin.flyway.image.pullPolicy }}
+          command:
+            - "flyway"
+          args:
+            - "migrate"
+          volumeMounts:
+            - name: flyway-conf
+              mountPath: /flyway/conf
+            - name: flyway-sql
+              mountPath: /flyway/sql
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.xxljob.image.repository }}:{{ .Values.xxljob.image.tag }}
+          imagePullPolicy: {{ .Values.xxljob.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.xxljob.serverPort }}
+              protocol: TCP 
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: PARAMS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullname }}-secret
+                  key: xxljob.params
+          volumeMounts:
+            - name: data
+              mountPath: /data/applogs
+              subPath: logs
+      volumes:
+        - name: data
+          emptyDir: { }
+        - name: flyway-conf
+          secret:
+            secretName: {{ $fullname }}-secret
+            items:
+              - key: flyway.conf
+                path: flyway.conf
+        - name: flyway-sql
+          configMap:
+            name: {{ $fullname }}-configmap
+            items:
+              - key: V1__xxljob-mysql.sql
+                path: V1__xxljob-mysql.sql
+
